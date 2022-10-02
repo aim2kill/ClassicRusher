@@ -1,62 +1,60 @@
-var AutoRush = {
-	/*
-########################################################
-		AutoRush for kolbot
+/**
+*  @filename    Rushee.js
+*  @author      kolton, Aim2Kill
+*  @desc        Rushee script that works with Rusher
+*/
 
-		Classic rush system for act1 normal - act3 hell
-	*/
-
+const AutoRush = {
 	Rusher: {
-		profile: "AutoRusher",
-		charName: "AbC"
+		profile: "Sorc-Rusher",
+		charName: "Rusher-MG"
 	},
 
 	BarbHelper: {
-		profile: "AutoRushBarbHelper",
-		charName: "BcD"
+		profile: "BarbHelper",
+		charName: "Brusherhelp-MG"
 	},
 
 	PalaHelper: {
-		profile: "AutoRushPalaHelper",
-		charName: "CdE"
+		profile: "PalaHelper",
+		charName: "PRusherhelp-MG"
+	},
+
+	Extra: {
+		Cain: false, // Do cain quest.
+		Radament: false, // Do Radament quest.
+		LamEsen: false, // Do Lam Esen quest.
+		Izual: false, // Do Izual quest.
+		GiveWps: false, // Give all Wps.(a bit buggy)
+		//stopAtLevel: 60, // Reach lvl 60 (still no implemented), the idea is to reach lvl 60+ doing chaos for ancient
 	},
 
 	// Leechers: { "profile 1": [list of character infos], "profile 2": [list of character infos]... }
-
 	Leechers: {
 		"AutoRushee": [
-			{account: "Au1", password: "", realm: "europe", charName: "au-i", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
+			{account: "Au1", password: "123", realm: "asia", charName: "au-i", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
 		],
 		"AutoRushee2": [
-			{account: "Au2", password: "", realm: "europe", charName: "au-ii", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
+			{account: "Au2", password: "123", realm: "asia", charName: "au-ii", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
 		],
-		"AutoRushee3": [
-			{account: "Au3", password: "", realm: "europe", charName: "au-iii", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
+		/*"AutoRushee3": [
+			{account: "Au3", password: "", realm: "asia", charName: "au-iii", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
 		],
 		"AutoRushee4": [
-			{account: "Au4", password: "", realm: "europe", charName: "au-iv", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
+			{account: "Au4", password: "", realm: "asia", charName: "au-iv", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
 		],
 		"AutoRushee5": [
-			{account: "Au5", password: "", realm: "europe", charName: "au-v", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
-		]
+			{account: "Au5", password: "", realm: "asia", charName: "au-v", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
+		]*/
 	},
-
-	Target: [2, 4], // Format - difficulty (0, 1, 2), act (1, 2, 3, 4)
-
-	/*
-########################################################
-	*/
 
 	RushInfo: {
 		create: function () {
-			var obj, string;
-
-			obj = {
-				lastSequence: "",
+			let obj = {
 				doneCharacters: []
 			};
 
-			string = JSON.stringify(obj);
+			let string = JSON.stringify(obj);
 
 			Misc.fileAction("data/AutoRush/RushInfo.json", 1, string);
 
@@ -64,13 +62,13 @@ var AutoRush = {
 		},
 
 		read: function () {
-			var obj, string;
+			let obj;
 
 			if (!FileTools.exists("data/AutoRush/RushInfo.json")) {
 				this.create();
 			}
 
-			string = Misc.fileAction("data/AutoRush/RushInfo.json", 0);
+			let string = Misc.fileAction("data/AutoRush/RushInfo.json", 0);
 
 			try {
 				obj = JSON.parse(string);
@@ -83,17 +81,16 @@ var AutoRush = {
 			}
 
 			return {
-				lastSequence: "",
 				doneCharacters: []
 			};
 		},
 
 		update: function (stat, value) {
-			var obj, string;
+			let obj;
 
 			obj = this.read();
 			obj[stat] = value;
-			string = JSON.stringify(obj);
+			let string = JSON.stringify(obj);
 
 			Misc.fileAction("data/AutoRush/RushInfo.json", 1, string);
 		}
@@ -105,12 +102,11 @@ var AutoRush = {
 			profile = me.profile;
 		}
 
-		var i, j,
-			rushInfo = this.RushInfo.read();
+		let rushInfo = this.RushInfo.read();
 
-		for (i in this.Leechers) {
+		for (let i in this.Leechers) {
 			if (this.Leechers.hasOwnProperty(i) && this.Leechers[i] instanceof Array && i === profile) {
-				for (j = 0; j < this.Leechers[i].length; j += 1) {
+				for (let j = 0; j < this.Leechers[i].length; j += 1) {
 					if (rushInfo.doneCharacters.indexOf(this.Leechers[i][j].charName) === -1) {
 						return this.Leechers[i][j];
 					}
@@ -122,12 +118,11 @@ var AutoRush = {
 	},
 
 	getQuester: function () {
-		var i, j,
-			rushInfo = this.RushInfo.read();
+		let rushInfo = this.RushInfo.read();
 
-		for (i in this.Leechers) {
+		for (let i in this.Leechers) {
 			if (this.Leechers.hasOwnProperty(i) && this.Leechers[i] instanceof Array) {
-				for (j = 0; j < this.Leechers[i].length; j += 1) {
+				for (let j = 0; j < this.Leechers[i].length; j += 1) {
 					if (rushInfo.doneCharacters.indexOf(this.Leechers[i][j].charName) === -1) {
 						return i;
 					}
@@ -139,13 +134,12 @@ var AutoRush = {
 	},
 
 	getRushees: function () {
-		var i, j,
-			rushees = [],
-			rushInfo = this.RushInfo.read();
+		let rushees = [];
+		let rushInfo = this.RushInfo.read();
 
-		for (i in this.Leechers) {
+		for (let i in this.Leechers) {
 			if (this.Leechers.hasOwnProperty(i) && this.Leechers[i] instanceof Array) {
-				for (j = 0; j < this.Leechers[i].length; j += 1) {
+				for (let j = 0; j < this.Leechers[i].length; j += 1) {
 					if (rushInfo.doneCharacters.indexOf(this.Leechers[i][j].charName) === -1) {
 						rushees.push(this.Leechers[i][j].charName);
 
@@ -159,10 +153,8 @@ var AutoRush = {
 	},
 
 	finishRush: function () {
-		var rushInfo, charArray;
-
-		rushInfo = this.RushInfo.read();
-		charArray = rushInfo.doneCharacters;
+		let rushInfo = this.RushInfo.read();
+		let charArray = rushInfo.doneCharacters;
 
 		if (charArray.indexOf(me.charname) === -1) {
 			charArray.push(me.charname);

@@ -1,11 +1,7 @@
-// Paladin config file
-
-/* Brief instructions:
- * Notepad++ is HIGHLY recommended to use for editing these files. Visit http://notepad-plus-plus.org/
- * To comment out something, put // in front of that line
- * !!!Never comment out something you're not sure about, set it to false or disable as noted in description if you don't want to use it.
- * true and false are case sensitive. Good: Config.SomeVar = true; Bad: Config.SomeVar = True;
- */
+/*
+* rushees config file
+* Note: Dont touch anything
+*/
 
 include("autorush.js");
 
@@ -25,11 +21,11 @@ function LoadConfig() {
 	Config.HealHP = 50; // Go to a healer if under designated percent of life.
 	Config.HealMP = 0; // Go to a healer if under designated percent of mana.
 	Config.HealStatus = false; // Go to a healer if poisoned or cursed
-	Config.UseMerc = true; // Use merc. This is ignored and always false in d2classic.
+	Config.UseMerc = false; // Use merc. This is ignored and always false in d2classic.
 	Config.MercWatch = false; // Instant merc revive during battle.
 
 	// Potion settings
-	Config.UseHP = 0; // Drink a healing potion if life is under designated percent.
+	Config.UseHP = 50; // Drink a healing potion if life is under designated percent.
 	Config.UseRejuvHP = 0; // Drink a rejuvenation potion if life is under designated percent.
 	Config.UseMP = 0; // Drink a mana potion if mana is under designated percent.
 	Config.UseRejuvMP = 0; // Drink a rejuvenation potion if mana is under designated percent.
@@ -52,10 +48,10 @@ function LoadConfig() {
 	 * 1 = item is unlocked and will be dropped, stashed or sold.
 	 * If you don't change the default values, the bot won't stash items.
 	 */
-	Config.Inventory[0] = [0,0,0,0,0,0,0,0,0,0];
-	Config.Inventory[1] = [0,0,0,0,0,0,0,0,0,0];
-	Config.Inventory[2] = [0,0,0,0,0,0,0,0,0,0];
-	Config.Inventory[3] = [0,0,0,0,0,0,0,0,0,0];
+	Config.Inventory[0] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	Config.Inventory[1] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	Config.Inventory[2] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+	Config.Inventory[3] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 	Config.StashGold = 100000; // Minimum amount of gold to stash.
 
@@ -65,16 +61,16 @@ function LoadConfig() {
 	 */
 	Config.BeltColumn[0] = "hp";
 	Config.BeltColumn[1] = "hp";
-	Config.BeltColumn[2] = "mp";
-	Config.BeltColumn[3] = "mp";
+	Config.BeltColumn[2] = "hp";
+	Config.BeltColumn[3] = "hp";
 
 	/* Minimum amount of potions. If we have less, go to vendor to purchase more.
 	 * Set rejuvenation columns to 0, because they can't be bought.
 	 */
-	Config.MinColumn[0] = 3;
-	Config.MinColumn[1] = 3;
-	Config.MinColumn[2] = 0;
-	Config.MinColumn[3] = 0;
+	Config.MinColumn[0] = 1;
+	Config.MinColumn[1] = 1;
+	Config.MinColumn[2] = 1;
+	Config.MinColumn[3] = 1;
 
 	// Pickit config
 	//Config.PickitFiles.push("kolton.nip"); // Pickit filenames in /pickit/ folder
@@ -179,9 +175,9 @@ function LoadConfig() {
 	 * Skills MUST be POSITIVE numbers. For reference see ...\kolbot\sdk\skills.txt
 	 */
 	Config.AttackSkill[0] = -1; // Preattack skill.
-	Config.AttackSkill[1] = 0; // Primary skill to bosses.
+	Config.AttackSkill[1] = -1; // Primary skill to bosses.
 	Config.AttackSkill[2] = -1; // Primary untimed skill to bosses. Keep at -1 if Config.AttackSkill[1] is untimed skill.
-	Config.AttackSkill[3] = 0; // Primary skill to others.
+	Config.AttackSkill[3] = -1; // Primary skill to others.
 	Config.AttackSkill[4] = -1; // Primary untimed skill to others. Keep at -1 if Config.AttackSkill[3] is untimed skill.
 	Config.AttackSkill[5] = -1; // Secondary skill if monster is immune to primary.
 	Config.AttackSkill[6] = -1; // Secondary untimed skill if monster is immune to primary untimed.

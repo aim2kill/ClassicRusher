@@ -1,11 +1,22 @@
-// this is intended for classic
+/**
+*  @filename    RusherHelper.js
+*  @author      kolton, theBGuy, Aim2Kill
+*  @desc        RusherHelper script that works with AutoRusher(Classic only)
+*
+*/
+
 function AutoRushHelper() {
 	include("autorush.js");
 
-	var i, leaderRoster, portal, tpGid, preset, pos,
-		doneAreas = [],
-		presetList = [396, 394, 392, 255],
-		leader = AutoRush.Rusher.charName;
+	let leaderRoster, pos, actions = [];
+	let leader = AutoRush.Rusher.charName;
+	let barbhelper = AutoRush.BarbHelper.charName;
+	let palahelper = AutoRush.PalaHelper.charName;
+
+	this.log = function (msg = "", sayMsg = false) {
+		print(msg);
+		sayMsg && say(msg);
+	};
 
 	this.findPlayer = function (name) {
 		var party = getParty();
@@ -21,38 +32,15 @@ function AutoRushHelper() {
 		return false;
 	};
 
-	this.playerIn = function (area) {
-		if (!area) {
-			area = me.area;
-		}
-
-		var party = getParty();
-
-		if (party) {
-			do {
-				if (party.name !== me.name && party.name !== leader && party.area === area) {
-					return true;
-				}
-			} while (party.getNext());
-		}
-
-		return false;
-	};
-
 	this.playersInAct = function (act) {
-		var area, party,
-			areas = [0, 1, 40, 75, 103, 109];
+		!act && (act = me.act);
 
-		if (!act) {
-			act = me.act;
-		}
-
-		area = areas[act];
-		party = getParty();
+		let area = sdk.areas.townOfAct(act);
+		let party = getParty();
 
 		if (party) {
 			do {
-				if (party.name !== me.name && party.name !== leader && party.area < area) {
+				if (party.name !== me.name && party.name !== leader && party.name !== barbhelper && party.name !== palahelper && party.area !== area) {
 					return false;
 				}
 			} while (party.getNext());
@@ -61,26 +49,66 @@ function AutoRushHelper() {
 		return true;
 	};
 
-	this.buildList = function (checkColl) {
-		var monsterList = [],
-			monster = getUnit(1);
+	this.playerIn = function (area) {
+		!area && (area = me.area);
 
-		if (monster) {
+		let party = getParty();
+
+		if (party) {
 			do {
-				if ([345, 346, 347].indexOf(monster.classid) > -1 && Attack.checkMonster(monster) && (!checkColl || !checkCollision(me, monster, 0x1))) {
-					monsterList.push(copyUnit(monster));
+				if (party.name !== me.name && party.name !== leader && party.name !== barbhelper && party.name !== palahelper && party.area === area) {
+					return true;
 				}
-			} while (monster.getNext());
+			} while (party.getNext());
 		}
 
-		return monsterList;
+		return false;
+	};
+
+	this.getPartyAct = function () {
+		let party = getParty();
+		let minArea = 999;
+
+		do {
+			if (party.name !== me.name && party.name !== leader && party.name !== barbhelper && party.name !== palahelper) {
+				while (!party.area) {
+					me.overhead("Waiting for party area info");
+					delay(100);
+				}
+
+				if (party.area < minArea) {
+					minArea = party.area;
+				}
+			}
+		} while (party.getNext());
+
+		return sdk.areas.actOf(minArea);
 	};
 
 	// START
 	//addEventListener("gameevent", AutoRush.quitEvent);
-	Town.goToTown(1);
-	Town.doChores(); // might be needed in other places too
-	Town.move("portalspot");
+	switch (this.getPartyAct()) {
+		case 1:
+			Town.goToTown(1);
+			Town.move("portalspot");
+
+			break;
+		case 2:
+			Town.goToTown(2);
+			Town.move("portalspot");
+
+			break;
+		case 3:
+			Town.goToTown(3);
+			Town.move("portalspot");
+
+			break;
+		case 4:
+			Town.goToTown(4);
+			Town.move("portalspot");
+
+			break;
+	}
 
 	while (!leaderRoster) {
 		leaderRoster = this.findPlayer(leader);
@@ -88,298 +116,389 @@ function AutoRushHelper() {
 		delay(500);
 	}
 
-MainLoop:
-	while (true) {
-MainSwitch:
-		switch (leaderRoster.area) {
-		case 37: // cata 4
-			if (me.area !== 1) {
-				Town.goToTown(1);
-				Town.move("portalspot");
-			}
-
-			if (doneAreas.indexOf(leaderRoster.area) > -1) {
-				break;
-			}
-
-			if (Pather.usePortal(37, leader)) {
-				doneAreas.push(leaderRoster.area);
-				Attack.securePosition(me.x, me.y, 25, 3000);
-
-				while (leaderRoster.area === me.area && !this.playerIn()) {
-					delay(250);
-				}
-
-				Attack.kill(156);
-
-				if (!Pather.usePortal(null, leader)) {
-					Town.goToTown(2);
-				}
-
-				Town.move("portalspot");
-			}
-
-			break;
-		case 40:
-			if (me.area !== 40) {
-				Town.goToTown(2);
-				Town.move("portalspot");
-			}
-
-			break;
-		case 60: // halls of the dead 3
-		case 61: // claw viper 2
-		case 64: // maggot 3
-		case 74: // arcane
-		case 66: // orifice!
-		case 67:
-		case 68:
-		case 69:
-		case 70:
-		case 71:
-		case 72:
-		case 73: // duriel's lair
-			if (me.area !== 40) {
-				Town.goToTown(2);
-				Town.move("portalspot");
-			}
-
-			if (doneAreas.indexOf(leaderRoster.area) > -1) {
-				break;
-			}
-
-			if (Pather.usePortal(leaderRoster.area, leader)) {
-				doneAreas.push(leaderRoster.area);
-
-				pos = {x: me.x, y: me.y};
-
-				Attack.clear(me.area === 61 ? 60 : 25);
-				Pather.moveToUnit(pos);
-				Precast.doPrecast(true);
-
-				while (leaderRoster.area === me.area && !this.playerIn()) {
-					Attack.clear(me.area === 61 ? 60 : 25);
-					Pather.moveToUnit(pos);
-					delay(200);
-				}
-
-				switch (me.area) {
-				case 73: // kill duriel
-					Attack.kill(211);
-					Town.goToTown();
-					Town.doChores();
-					Town.goToTown(3);
-
-					break MainSwitch;
-				}
-
-				while (leaderRoster.area === me.area) {
-					Attack.clear(25);
-					Pather.moveToUnit(pos);
-					delay(200);
-				}
-
-				if (!Pather.usePortal(null, leader)) {
-					Town.goToTown(me.area === 73 ? 3 : undefined);
-				}
-			}
-
-			break;
-		case 75:
-			if (me.area !== 75) {
-				Town.goToTown(3);
-				Town.move("portalspot");
-			}
-
-			break;
-		case 100: // durance 1 -> travincal
-			if (me.area !== 75) {
-				Town.goToTown(3);
-				Town.move("portalspot");
-			}
-
-			if (doneAreas.indexOf(leaderRoster.area) > -1) {
-				break;
-			}
-
-			if (Pather.usePortal(leaderRoster.area, leader)) {
-				doneAreas.push(leaderRoster.area);
-
-				while (!this.playerIn(83)) {
-					delay(100);
-				}
-
-				Pather.moveToExit(83, true);
-
-				if (me.diff === 2) {
-					Attack.clearList(this.buildList(0));
-					say("trav dead");
-				} else {
-					try {
-						Attack.kill(getLocaleString(2863));
-						Attack.kill(getLocaleString(2862));
-						Attack.kill(getLocaleString(2860));
-					} catch (e) {
-
-					}
-				}
-
-				while (this.playerIn(83)) {
-					delay(100);
-				}
-
-				Town.goToTown(3);
-			}
-
-			break;
-		case 102: // mephisto
-			if (me.area !== 75) {
-				Town.goToTown(3);
-				Town.move("portalspot");
-			}
-
-			portal = Pather.getPortal(102, leader);
-
-			if (portal && portal.gid !== tpGid) {
-				tpGid = portal.gid;
-
-				Pather.usePortal(102, leader);
-
-				if (me.x > 17601) {
-					Attack.clear(30);
-				} else {
-					while (!this.playerIn()) {
-						Attack.clear(20);
-						delay(250);
-					}
-
-					switch (me.area) {
-					case 102: // kill mephisto
-						Attack.kill(242);
+	addEventListener("chatmsg",
+		function (who, msg) {
+			if (who === leader) {
+				switch (msg) {
+					case "bye ~":
+						quit();
 
 						break;
-					}
+					case "we're done":
+						delay(2000);
+						D2Bot.stop();
 
-					while (this.playerIn()) {
-						delay(250);
-					}
-
-					if (!Pather.usePortal(null, leader)) {
-						Town.goToTown(me.area === 103 ? 4 : undefined);
-					}
-
-					while (!this.playersInAct(4)) {
-						delay(500);
-					}
-				}
-			}
-
-			break;
-		case 103:
-			if (me.area !== 103) {
-				Town.goToTown(4);
-				Town.move("portalspot");
-			}
-
-			break;
-		case 108: // diablo (gid method)
-			if (me.area !== 103) {
-				Town.goToTown(4);
-				Town.move("portalspot");
-			}
-
-			portal = Pather.getPortal(108, leader);
-
-			if (portal && portal.gid !== tpGid) {
-				tpGid = portal.gid;
-
-				Pather.usePortal(108, leader);
-
-				for (i = 0; i < presetList.length; i += 1) {
-					preset = getPresetUnit(108, 2, presetList[i]);
-
-					if (preset && getDistance(me, preset.roomx * 5 + preset.x, preset.roomy * 5 + preset.y) < 75) {
 						break;
-					}
+					case "clear":
+						switch (leaderRoster.area) {
+							// act 1 clear areas
+							case sdk.areas.DarkWood:
+							case sdk.areas.StonyField:
+							case sdk.areas.Tristram:
+								if (Pather.usePortal(leaderRoster.area, leader)) {
 
-					preset = {id: null};
-				}
+									pos = { x: me.x, y: me.y };
 
-				print(preset.id);
+									Attack.clear(me.area === sdk.areas.DarkWood ? sdk.areas.StonyField : 30);
+									Pather.moveToUnit(pos);
 
-				switch (preset.id) {
-				case 396: // vizier
-					// might need to be expanded to prevent endless loop
-					while (!getUnit(1, getLocaleString(2851))) {
-						delay(500);
-					}
+									while (leaderRoster.area === me.area && !this.playerIn()) {
+										Attack.clear(me.area === sdk.areas.DarkWood ? sdk.areas.StonyField : 30);
+										Pather.moveToUnit(pos);
+										delay(200);
+									}
 
-					try {
-						Attack.kill(getLocaleString(2851));
-					} catch (vizE) {
+									while (this.playerIn()) {
+										Attack.securePosition(me.x, me.y, 30);
+										Pather.moveToUnit(pos);
+										delay(100);
+									}
 
-					}
+									if (!Pather.usePortal(null, leader)) {
+										Town.goToTown(me.area === sdk.areas.RogueEncampment ? 1 : undefined);
+									}
+								}
 
-					break;
-				case 394: // de seis
-					// might need to be expanded to prevent endless loop
-					while (!getUnit(1, getLocaleString(2852))) {
-						delay(500);
-					}
+								break;
+							// Helping Rusher clear room before killing Andy
+							case sdk.areas.CatacombsLvl4:
+								if (Pather.usePortal(sdk.areas.CatacombsLvl4, leader)) {
+									Attack.securePosition(me.x, me.y, 30);
 
-					try {
-						Attack.kill(getLocaleString(2852));
-					} catch (seisE) {
+									if (!Pather.usePortal(null, leader)) {
+										Town.goToTown(1);
+									}
 
-					}
+									Town.move("portalspot");
+								}
 
-					break;
-				case 392: // infector
-					// might need to be expanded to prevent endless loop
-					while (!getUnit(1, getLocaleString(2853))) {
-						delay(500);
-					}
+								break;
+							// act 2 clear areas
+							case sdk.areas.HallsoftheDeadLvl3:
+							case sdk.areas.ClawViperTempleLvl2:
+							case sdk.areas.MaggotLairLvl3:
+							case sdk.areas.ArcaneSanctuary:
+							case sdk.areas.A2SewersLvl3:
+								if (Pather.usePortal(leaderRoster.area, leader)) {
 
-					try {
-						Attack.kill(getLocaleString(2853));
-					} catch (infE) {
+									pos = { x: me.x, y: me.y };
 
-					}
+									Attack.clear(me.area === sdk.areas.ClawViperTempleLvl2 ? sdk.areas.HallsoftheDeadLvl3 : 25);
+									Pather.moveToUnit(pos);
+									Precast.doPrecast(true);
 
-					break;
-				case 255: // diablo
-					// might need to be expanded to prevent endless loop
-					while (!getUnit(1, 243)) {
-						delay(500);
-					}
+									while (leaderRoster.area === me.area && !this.playerIn()) {
+										Attack.clear(me.area === sdk.areas.ClawViperTempleLvl2 ? sdk.areas.HallsoftheDeadLvl3 : 25);
+										Pather.moveToUnit(pos);
+										delay(200);
+									}
 
-					while (!this.playerIn()) {
-						delay(250);
-					}
+									switch (me.area) {
+										case sdk.areas.A2SewersLvl3:
 
-					if (Attack.kill(243)) {
-						while (this.playersInAct(4)) {
-							delay(500);
+											while (!this.playerIn()) {
+												Attack.securePosition(me.x, me.y, 35);
+												delay(200);
+											}
+
+											Attack.kill(sdk.monsters.Radament);
+									}
+
+									while (leaderRoster.area === me.area) {
+										Attack.securePosition(me.x, me.y, 20, 1000);
+										delay(200);
+									}
+
+									if (!Pather.usePortal(null, leader)) {
+										Town.goToTown(me.area === sdk.areas.LutGholein ? 2 : undefined);
+									}
+								}
+
+								break;
+							// Helping Rusher clear room to place staff 
+							case sdk.areas.TalRashasTomb1:
+							case sdk.areas.TalRashasTomb2:
+							case sdk.areas.TalRashasTomb3:
+							case sdk.areas.TalRashasTomb4:
+							case sdk.areas.TalRashasTomb5:
+							case sdk.areas.TalRashasTomb6:
+							case sdk.areas.TalRashasTomb7:
+								if (Pather.usePortal(leaderRoster.area, leader)) {
+
+									pos = { x: me.x, y: me.y };
+
+									while (leaderRoster.area === me.area && !this.playerIn()) {
+										Attack.securePosition(me.x, me.y, 25);
+										Pather.moveToUnit(pos);
+										delay(200);
+									}
+
+									while (this.playerIn()) {
+										delay(100);
+									}
+
+									if (!Pather.usePortal(null, leader)) {
+										Town.goToTown(me.area === sdk.areas.LutGholein ? 2 : undefined);
+									}
+								}
+
+								break;
+							// act 3 clear area
+							case sdk.areas.RuinedTemple:
+								if (Pather.usePortal(leaderRoster.area, leader)) {
+
+									pos = { x: me.x, y: me.y };
+
+									while (leaderRoster.area === me.area && !this.playerIn()) {
+										Attack.clear(me.x, me.y, 35, 1000);
+										Pather.moveToUnit(pos);
+										delay(200);
+									}
+
+									while (this.playerIn()) {
+										Attack.securePosition(me.x, me.y, 35);
+										Pather.moveToUnit(pos);
+										delay(100);
+									}
+
+									if (!Pather.usePortal(null, leader)) {
+										Town.goToTown(me.area === sdk.areas.KurastDocktown ? 3 : undefined);
+									}
+								}
+
+								break;
+							// Helping Rusher clear a spot for rushee
+							case sdk.areas.Travincal:
+								if (Pather.usePortal(leaderRoster.area, leader)) {
+
+									while (leaderRoster.area === me.area && !this.playerIn()) {
+										Attack.securePosition(me.x, me.y, 25);
+										Pather.moveToUnit(pos);
+										delay(100);
+									}
+								}
+
+								break;
+							// act 4 clear areas
+							case sdk.areas.PlainsofDespair:
+								if (Pather.usePortal(leaderRoster.area, leader)) {
+
+									while (!this.playerIn()) {
+										Attack.securePosition(me.x, me.y, 35, 3000);
+										delay(200);
+									}
+
+									Attack.kill(sdk.monsters.Izual);
+
+									if (!Pather.usePortal(null, leader)) {
+										Town.goToTown(me.area === sdk.areas.PandemoniumFortress ? 4 : undefined);
+									}
+								}
+
+								break;
+
 						}
-						
-						break MainLoop;
-					}
 
-					break;
+						break;
+					case "kill":
+						switch (leaderRoster.area) {
+							case sdk.areas.CatacombsLvl4: // andariel
+								if (Pather.usePortal(sdk.areas.CatacombsLvl4, leader)) {
+
+									Attack.kill(sdk.monsters.Andariel);
+									Pickit.pickItems();
+									Pather.makePortal() && Pather.usePortal(null, me.name);
+								}
+								Town.goToTown(4) && Town.doChores();
+								Town.goToTown(2) && Town.move("portalspot");
+
+								break;
+							case sdk.areas.DurielsLair: // duriel
+								if (Pather.usePortal(sdk.areas.DurielsLair, leader)) {
+
+									Attack.kill(sdk.monsters.Duriel);
+									Pickit.pickItems();
+
+									if (!Pather.usePortal(null, leader)) {
+										Town.goToTown(me.area === sdk.areas.LutGholein ? 2 : undefined);
+									}
+								}
+
+								Town.goToTown(4) && Town.doChores();
+								Town.goToTown(3) && Town.move("portalspot");
+
+								break;
+							case sdk.areas.Travincal: // councils
+								if (Pather.usePortal(sdk.areas.Travincal, leader)) {
+
+									Attack.clearList(Attack.getMob([sdk.monsters.Council1, sdk.monsters.Council2, sdk.monsters.Council3], 0, 40));
+									Pickit.pickItems();
+								}
+
+								break;
+							case sdk.areas.DuranceofHateLvl3: // mephisto
+								if (Pather.usePortal(sdk.areas.DuranceofHateLvl3, leader)) {
+
+									Attack.kill(sdk.monsters.Mephisto);
+									Pickit.pickItems();
+									Pather.moveTo(17591, 8070);
+
+									while (!this.playersInAct(4)) {
+										delay(250);
+									}
+
+									Pather.usePortal(null);
+								}
+
+								break;
+							case sdk.areas.ChaosSanctuary: // diablo
+								if (Pather.usePortal(sdk.areas.ChaosSanctuary, leader)) {
+
+									Pather.moveTo(17591, 8070);
+									Common.Diablo.diabloPrep();
+									Attack.kill(sdk.monsters.Diablo);
+									Pickit.pickItems();
+
+									while (!this.playerIn(sdk.areas.ChaosSanctuary)) {
+										delay(250);
+									}
+
+									Pather.usePortal(null);
+								}
+								break;
+						}
+
+						break;
+					case "seal1":
+						switch (leaderRoster.area) {
+							case sdk.areas.ChaosSanctuary: // GrandVizierofChaos
+								if (Pather.usePortal(sdk.areas.ChaosSanctuary, leader)) {
+									while (!Common.Diablo.getBoss(getLocaleString(sdk.locale.monsters.GrandVizierofChaos))) {
+										Attack.securePosition(me.x, me.y, 35, 3000);
+										delay(100);
+									}
+									Attack.kill(getLocaleString(sdk.locale.monsters.GrandVizierofChaos));
+								}
+								break;
+						}
+
+						break;
+					case "seal2":
+						switch (leaderRoster.area) {
+							case sdk.areas.ChaosSanctuary: // LordDeSeis
+								if (Pather.usePortal(sdk.areas.ChaosSanctuary, leader)) {
+									while (!Common.Diablo.getBoss(getLocaleString(sdk.locale.monsters.LordDeSeis))) {
+										Attack.securePosition(me.x, me.y, 25, 2000);
+										delay(100);
+									}
+									Attack.kill(getLocaleString(sdk.locale.monsters.LordDeSeis));
+								}
+								break;
+						}
+
+						break;
+					case "seal3":
+						switch (leaderRoster.area) {
+							case sdk.areas.ChaosSanctuary: // InfectorofSouls
+								if (Pather.usePortal(sdk.areas.ChaosSanctuary, leader)) {
+									while (!Common.Diablo.getBoss(getLocaleString(sdk.locale.monsters.InfectorofSouls))) {
+										Attack.securePosition(me.x, me.y, 35, 3000);
+										delay(100);
+									}
+									Attack.kill(getLocaleString(sdk.locale.monsters.InfectorofSouls));
+								}
+								break;
+						}
+
+						break;
+					case "out":
+						switch (me.area) {
+							case sdk.areas.Travincal:
+							case sdk.areas.KurastDocktown:
+							case sdk.areas.ChaosSanctuary:
+							case sdk.areas.PandemoniumFortress:
+								if (!me.inTown) {
+									Town.goToTown();
+								}
+								Town.move("portalspot");
+								break;
+						}
+
+						break;
+					default:
+						if (who === leader) {
+							actions.push(msg);
+						}
+
+						break;
+
+
+
 				}
 			}
+		});
 
-			break;
+	MainLoop:
+	while (true) {
+		switch (leaderRoster.area) {
+			case sdk.areas.DarkWood:
+			case sdk.areas.StonyField:
+			case sdk.areas.Tristram:
+			case sdk.areas.CatacombsLvl4:
+				if (me.area !== sdk.areas.RogueEncampment) {
+					Town.goToTown(1);
+					Town.move("portalspot");
+				}
+
+				break;
+			case sdk.areas.HallsoftheDeadLvl3:
+			case sdk.areas.ClawViperTempleLvl2:
+			case sdk.areas.MaggotLairLvl3:
+			case sdk.areas.ArcaneSanctuary:
+			case sdk.areas.TalRashasTomb1:
+			case sdk.areas.TalRashasTomb2:
+			case sdk.areas.TalRashasTomb3:
+			case sdk.areas.TalRashasTomb4:
+			case sdk.areas.TalRashasTomb5:
+			case sdk.areas.TalRashasTomb6:
+			case sdk.areas.TalRashasTomb7:
+			case sdk.areas.A2SewersLvl3:
+				if (me.area !== sdk.areas.LutGholein) {
+					Town.goToTown(2);
+					Town.move("portalspot");
+				}
+
+				break;
+			case sdk.areas.RuinedTemple:
+			case sdk.areas.Travincal:
+			case sdk.areas.DuranceofHateLvl3:
+				if (me.area !== sdk.areas.KurastDocktown) {
+					Town.goToTown(3);
+					Town.move("portalspot");
+				}
+
+				break;
+			case sdk.areas.PlainsofDespair:
+			case sdk.areas.ChaosSanctuary:
+				if (me.area !== sdk.areas.PandemoniumFortress) {
+					Town.goToTown(4);
+					Town.move("portalspot");
+				}
+
+				break;
+			case sdk.areas.Harrogath:
+			case sdk.areas.FrozenRiver:
+			case sdk.areas.WorldstoneChamber:
+			case sdk.areas.ThroneofDestruction:
+				if (me.area !== sdk.areas.Harrogath) {
+					Town.goToTown(5);
+					Town.move("portalspot");
+				}
+
+				break MainLoop;
 		}
-
-		if (AutoRush.Target.length && me.diff === AutoRush.Target[0] && me.act === AutoRush.Target[1]) {
-			quit();
-
-			return true;
-		}
-
-		delay(500);
 	}
 
+	delay(500);
 	return true;
 }

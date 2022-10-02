@@ -29,18 +29,16 @@ if (!FileTools.exists("data/" + me.profile + ".json")) {
 	DataFile.create();
 }
 
-var gameInfo, gameStart, ingame, muleTrigger, handle, chatActionsDone, rushInfo, makeAcc,
+let gameInfo, gameStart, ingame, muleTrigger, handle, chatActionsDone, rushInfo, makeAcc,
 	firstLogin, connectFail, torchTrigger, torchMuleTrigger, joinInfo, lastGame,
 	gameCount = DataFile.getStats().runs + 1,
 	lastGameStatus = "ready",
 	loginFail = 0,
 	isUp = "no",
-	SWWM8Timer = 15, // something went wrong m8 timer
+	SWWM8Timer = 30, // something went wrong m8 timer
 	quester;
 
 function somethingWentWrongM8() {
-	var i;
-
 	if (me.profile === AutoRush.Rusher.profile) {
 		D2Bot.printToConsole("Something went wrong m8", 9);
 
@@ -54,7 +52,7 @@ function somethingWentWrongM8() {
 			delay(500);
 		}
 
-		for (i in AutoRush.Leechers) {
+		for (let i in AutoRush.Leechers) {
 			if (AutoRush.Leechers.hasOwnProperty(i)) {
 				if (AutoRush.Leechers[i] instanceof Array) {
 					D2Bot.stop(i);
@@ -68,7 +66,7 @@ function somethingWentWrongM8() {
 }
 
 function timeoutDelay(text, time) {
-	var endTime = new Date().getTime() + time;
+	let endTime = new Date().getTime() + time;
 
 	while (new Date().getTime() < endTime) {
 		D2Bot.updateStatus(text + " (" + Math.floor((endTime - new Date().getTime()) / 1000) + "s)");
@@ -77,7 +75,7 @@ function timeoutDelay(text, time) {
 }
 
 function locationTimeout(time, location) {
-	var endtime = new Date().getTime() + time;
+	let endtime = new Date().getTime() + time;
 
 	while (getLocation() === location && endtime > new Date().getTime()) {
 		delay(500);
@@ -103,7 +101,7 @@ function updateCount() {
 
 function ReceiveCopyData(mode, msg) {
 	//print(mode + " " + msg);
-	var obj;
+	let obj;
 
 	switch (msg) {
 	case "Handle":
@@ -149,7 +147,6 @@ function timer(tick) {
 }
 
 function main() {
-	var i;
 
 	addEventListener('copydata', ReceiveCopyData);
 
@@ -197,7 +194,7 @@ function main() {
 			delay(500);
 		}
 
-		for (i in AutoRush.Leechers) {
+		for (let i in AutoRush.Leechers) {
 			if (AutoRush.Leechers.hasOwnProperty(i)) {
 				if (AutoRush.Leechers[i] instanceof Array) {
 					D2Bot.start(i);
@@ -245,7 +242,7 @@ function main() {
 }
 
 function locationAction(location) {
-	var i, control, string, text, accInfo;
+	let i, string, text;
 
 	if (!AutoRush.getQuester()) {
 		if (AutoRush.Rusher.profile === me.profile) {
@@ -334,7 +331,7 @@ MainSwitch:
 	case 4: // Create Game
 		D2Bot.updateStatus("Creating Game");
 
-		control = getControl(1, 657, 342, 27, 20);
+		let control = getControl(1, 657, 342, 27, 20);
 
 		// Remove character difference
 		if (control.disabled === 5) {
@@ -454,7 +451,7 @@ MainSwitch:
 				D2Bot.stop();
 			}
 
-			accInfo = AutoRush.getInfo();
+			let accInfo = AutoRush.getInfo();
 
 			if (makeAcc) {
 				ControlAction.makeAccount(accInfo);
@@ -551,7 +548,7 @@ MainSwitch:
 	case 12: // Character Select
 	case 42: // Empty Character Select
 		if (me.profile !== AutoRush.Rusher.profile && me.profile !== AutoRush.BarbHelper.profile && me.profile !== AutoRush.PalaHelper.profile) {
-			accInfo = AutoRush.getInfo();
+			let accInfo = AutoRush.getInfo();
 
 			if (!ControlAction.findCharacter(accInfo)) {
 				ControlAction.makeCharacter(accInfo);

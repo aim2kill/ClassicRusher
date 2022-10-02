@@ -1,14 +1,109 @@
-function AutoRushee() {
-	include("AutoRush.js");
+/**
+*  @filename    Rushee.js
+*  @author      kolton, theBGuy, Aim2Kill
+*  @desc        Rushee script that works with Rusher
+*
+*/
 
-	var leader, target, act,
-		andyCheck, travCheck, summonerCheck,
-		leaderName = AutoRush.Rusher.charName,
-		quester = me.profile === AutoRush.getQuester(),
-		actions = [];
+let Overrides = require("../modules/Override");
+
+new Overrides.Override(Town, Town.goToTown, function (orignal, act, wpmenu) {
+	try {
+		orignal(act, wpmenu);
+
+		return true;
+	} catch (e) {
+		print(e);
+
+		return Pather.useWaypoint(sdk.areas.townOf(me.area));
+	}
+}).apply();
+
+new Overrides.Override(Pather, Pather.getWP, function (orignal, area, clearPath) {
+	if (area !== me.area) return false;
+
+	for (let i = 0; i < sdk.waypoints.Ids.length; i++) {
+		let preset = Game.getPresetObject(me.area, sdk.waypoints.Ids[i]);
+
+		if (preset) {
+			let x = (preset.roomx * 5 + preset.x);
+			let y = (preset.roomy * 5 + preset.y);
+			if (!me.inTown && [x, y].distance > 15) return false;
+
+			Skill.haveTK ? this.moveNearUnit(preset, 20, { clearSettings: { clearPath: clearPath } }) : this.moveToUnit(preset, 0, 0, clearPath);
+
+			let wp = Game.getObject("waypoint");
+
+			if (wp) {
+				for (let j = 0; j < 10; j++) {
+					if (!getUIFlag(sdk.uiflags.Waypoint)) {
+						if (wp.distance > 5 && Skill.useTK(wp) && j < 3) {
+							wp.distance > 21 && Attack.getIntoPosition(wp, 20, sdk.collision.Ranged);
+							Skill.cast(sdk.skills.Telekinesis, sdk.skills.hand.Right, wp);
+						} else if (wp.distance > 5 || !getUIFlag(sdk.uiflags.Waypoint)) {
+							this.moveToUnit(wp) && Misc.click(0, 0, wp);
+						}
+					}
+
+					if (Misc.poll(() => me.gameReady && getUIFlag(sdk.uiflags.Waypoint), 1000, 150)) {
+						delay(500);
+						me.cancelUIFlags();
+
+						return true;
+					}
+
+					// handle getUnit bug
+					if (!getUIFlag(sdk.uiflags.Waypoint) && me.inTown && wp.name.toLowerCase() === "dummy") {
+						Town.getDistance("waypoint") > 5 && Town.move("waypoint");
+						Misc.click(0, 0, wp);
+					}
+
+					delay(500);
+				}
+			}
+		}
+	}
+
+	return false;
+}).apply();
+
+include("AutoRush.js");
+
+function AutoRushee() {
+	let act, leader, target, done = false;
+	let leaderName = AutoRush.Rusher.charName;
+	let quester = me.profile === AutoRush.getQuester();
+	let actions = [];
+
+	this.log = function (msg = "", sayMsg = false) {
+		print(msg);
+		sayMsg && say(msg);
+	};
+
+	/*this.useScrollOfRes = function () {
+		let scroll = me.scrollofresistance;
+		if (scroll) {
+			clickItem(sdk.clicktypes.click.Right, scroll);
+			print("Using scroll of resistance");
+		}
+	};*/
+
+	this.revive = function () {
+		while (me.mode === sdk.player.mode.Death) {
+			delay(40);
+		}
+
+		if (me.mode === sdk.player.mode.Dead) {
+			me.revive();
+
+			while (!me.inTown) {
+				delay(40);
+			}
+		}
+	};
 
 	this.findLeader = function (name) {
-		var party = getParty(name);
+		let party = getParty(name);
 
 		if (party) {
 			return party;
@@ -17,56 +112,40 @@ function AutoRushee() {
 		return false;
 	};
 
-	// Get leader's act from Party Unit
-	this.checkLeaderAct = function (unit) {
-		if (unit.area <= 39) {
-			return 1;
-		}
-
-		if (unit.area >= 40 && unit.area <= 74) {
-			return 2;
-		}
-
-		if (unit.area >= 75 && unit.area <= 102) {
-			return 3;
-		}
-
-		if (unit.area >= 103 && unit.area <= 108) {
-			return 4;
-		}
-
-		return 5;
-	};
-
-	this.checkQuest = function (id, state) {
-		sendPacket(1, 0x40);
-		delay(500);
-
-		return me.getQuest(id, state);
-	};
-
+	// todo - map the chest to classid so we only need to pass in one value
 	this.getQuestItem = function (classid, chestid) {
-		var chest, item;
+		let tick = getTickCount();
 
 		if (me.getItem(classid)) {
+			this.log("Already have: " + classid);
 			return true;
 		}
 
-		if (me.inTown) {
-			return false;
-		}
+		if (me.inTown) return false;
 
-		chest = getUnit(2, chestid);
+		let chest = Game.getObject(chestid);
 
 		if (!chest) {
+			this.log("Couldn't find: " + chestid);
 			return false;
 		}
 
-		Misc.openChest(chest);
+		for (let i = 0; i < 5; i++) {
+			if (Misc.openChest(chest)) {
+				break;
+			}
+			this.log("Failed to open chest: Attempt[" + (i + 1) + "]");
+			let coord = CollMap.getRandCoordinate(chest.x, -4, 4, chest.y, -4, 4);
+			coord && Pather.moveTo(coord.x, coord.y);
+		}
 
-		item = getUnit(4, classid);
+		let item = Game.getItem(classid);
 
 		if (!item) {
+			if (getTickCount() - tick < 500) {
+				delay(500);
+			}
+
 			return false;
 		}
 
@@ -74,10 +153,10 @@ function AutoRushee() {
 	};
 
 	this.checkQuestMonster = function (classid) {
-		var monster = getUnit(1, classid);
+		let monster = Game.getMonster(classid);
 
 		if (monster) {
-			while (monster.mode !== 0 && monster.mode !== 12) {
+			while (!monster.dead) {
 				delay(500);
 			}
 
@@ -88,66 +167,63 @@ function AutoRushee() {
 	};
 
 	this.tyraelTalk = function () {
-		var i,
-			npc = getUnit(1, NPC.Tyrael);
+		let npc = Game.getNPC(NPC.Tyrael);
 
-		if (!npc) {
-			return false;
-		}
+		if (!npc) return false;
 
-		for (i = 0; i < 10; i += 1) {
-			if (i % 2 === 0) {
-				Pather.moveTo(npc.x, npc.y + 6);
-			}
-
-			if (getDistance(me, npc) > 3) {
-				Pather.moveToUnit(npc);
-			}
-
+		for (let i = 0; i < 3; i += 1) {
+			npc.distance > 3 && Pather.moveToUnit(npc);
 			npc.interact();
-			delay(1000);
+			delay(1000 + me.ping);
 			me.cancel();
 
-			if (Pather.usePortal(null)) {
-				return true;
+			if (Pather.getPortal(null)) {
+				me.cancel();
+
+				break;
 			}
 		}
 
-		return false;
+		return Pather.usePortal(null) || Pather.usePortal(null, leaderName);
 	};
 
 	this.cubeStaff = function () {
-		var staff = me.getItem("vip"),
-			amulet = me.getItem("msf");
+		let shaft = me.shaft;
+		let amulet = me.amulet;
 
-		if (!staff || !amulet) {
-			return false;
-		}
+		if (!shaft || !amulet) return false;
 
 		Storage.Cube.MoveTo(amulet);
-		Storage.Cube.MoveTo(staff);
+		Storage.Cube.MoveTo(shaft);
 		Cubing.openCube();
+		print("making staff");
 		transmute();
 		delay(750 + me.ping);
-		Cubing.emptyCube();
+
+		let staff = me.completestaff;
+
+		if (!staff) return false;
+
+		Storage.Inventory.MoveTo(staff);
 		me.cancel();
 
 		return true;
 	};
 
 	this.placeStaff = function () {
-		var staff,
-			orifice = getUnit(2, 152);
-
-		if (!orifice) {
-			return false;
-		}
+		let tick = getTickCount();
+		let orifice = Game.getObject(sdk.quest.chest.HoradricStaffHolder);
+		if (!orifice) return false;
 
 		Misc.openChest(orifice);
 
-		staff = me.getItem(91);
+		let staff = me.completestaff;
 
 		if (!staff) {
+			if (getTickCount() - tick < 500) {
+				delay(500);
+			}
+
 			return false;
 		}
 
@@ -155,14 +231,20 @@ function AutoRushee() {
 		submitItem();
 		delay(750 + me.ping);
 
+		// unbug cursor
+		let item = me.findItem(-1, sdk.items.mode.inStorage, sdk.storage.Inventory);
+
+		if (item && item.toCursor()) {
+			Storage.Inventory.MoveTo(item);
+		}
+
 		return true;
 	};
 
 	this.changeAct = function (act) {
-		var npc,
-			preArea = me.area;
+		let preArea = me.area;
 
-		if (me.playertype != 1 && me.mode === 17) {
+		if (me.mode === sdk.player.mode.Dead) {
 			me.revive();
 
 			while (!me.inTown) {
@@ -170,106 +252,53 @@ function AutoRushee() {
 			}
 		}
 
-		if (me.act === act) {
-			return true;
-		}
+		if (me.act === act || me.act > act) return true;
 
 		try {
 			switch (act) {
-			case 2:
-				if (me.act >= 2) {
+				case 2:
+					if (!Town.npcInteract("Warriv", false)) return false;
+					Misc.useMenu(sdk.menu.GoEast);
+
 					break;
-				}
+				case 3:
+					// Non Quester needs to talk to Townsfolk to enable Harem TP
+					if (!quester) {
+						// Talk to Atma
+						if (!Town.npcInteract("Atma")) {
+							break;
+						}
+					}
 
-				Town.move(NPC.Warriv);
+					Pather.usePortal(sdk.areas.HaremLvl1, leaderName);
+					Pather.moveToExit(sdk.areas.LutGholein, true);
 
-				npc = getUnit(1, 155);
+					if (!Town.npcInteract("Jerhyn")) {
+						Pather.moveTo(5166, 5206);
 
-				if (!npc || !npc.openMenu()) {
-					return false;
-				}
-
-				Misc.useMenu(0x0D36);
-
-				break;
-			case 3:
-				if (me.act >= 3) {
-					break;
-				}
-
-				Town.move("palace");
-
-				npc = getUnit(1, 201);
-
-				if (!npc || !npc.openMenu()) {
-					Pather.moveTo(5166, 5206);
-
-					return false;
-				}
-
-				me.cancel();
-				Town.move(NPC.Meshif);
-
-				npc = getUnit(1, 210);
-
-				if (!npc || !npc.openMenu()) {
-					return false;
-				}
-
-				Misc.useMenu(0x0D38);
-
-				break;
-			case 4:
-				if (me.act >= 4) {
-					break;
-				}
-
-				if (me.inTown) {
-					Town.move(NPC.Cain);
-
-					npc = getUnit(1, 245);
-
-					if (!npc || !npc.openMenu()) {
 						return false;
 					}
 
 					me.cancel();
-					Pather.usePortal(102, leaderName);
-				}
+					Pather.moveToExit(sdk.areas.HaremLvl1, true);
+					Pather.usePortal(sdk.areas.LutGholein, leaderName);
 
-				delay(1500);
+					if (!Town.npcInteract("Meshif", false)) return false;
+					Misc.useMenu(sdk.menu.SailEast);
 
-				target = getUnit(2, 342);
-
-				if (target) {
-					Pather.moveTo(target.x - 3, target.y - 1);
-				}
-
-				Pather.usePortal(null);
-
-				break;
-			case 5:
-				if (me.act >= 5) {
 					break;
-				}
+				case 4:
+					if (me.inTown) {
+						Town.npcInteract("Cain");
+						Pather.usePortal(sdk.areas.DuranceofHateLvl3, leaderName);
+					} else {
+						delay(1500);
+					}
 
-				Town.move(NPC.Tyrael);
+					Pather.moveTo(17591, 8070);
+					Pather.usePortal(null);
 
-				npc = getUnit(1, NPC.Tyrael);
-
-				if (!npc || !npc.openMenu()) {
-					return false;
-				}
-
-				me.cancel();
-
-				try {
-					Pather.useUnit(2, 566, 109);
-				} catch (a5e) {
-
-				}
-
-				break;
+					break;
 			}
 
 			delay(1000 + me.ping * 2);
@@ -281,19 +310,12 @@ function AutoRushee() {
 			if (me.area === preArea) {
 				me.cancel();
 				Town.move("portalspot");
-				say("Act change failed.");
+				this.log("Act change failed.", Config.LocalChat.Enabled);
 
 				return false;
 			}
 
-			if (AutoRush.Target.length && me.diff === AutoRush.Target[0] && me.act === AutoRush.Target[1]) {
-				AutoRush.finishRush();
-				D2Bot.restart();
-
-				return true;
-			}
-
-			say("Act change done.");
+			this.log("Act change done.", Config.LocalChat.Enabled);
 		} catch (e) {
 			return false;
 		}
@@ -301,29 +323,28 @@ function AutoRushee() {
 		return true;
 	};
 
-	// START
-	//addEventListener("gameevent", AutoRush.quitEvent);
+	this.getQuestInfo = function (id) {
+		// note: end bosses double printed to match able to go to act flag
+		let quests = [
+			["cain", sdk.quest.id.TheSearchForCain], ["andariel", sdk.quest.id.SistersToTheSlaughter], ["andariel", sdk.quest.id.AbleToGotoActII],
+			["radament", sdk.quest.id.RadamentsLair], ["cube", sdk.quest.id.TheHoradricStaff], ["amulet", sdk.quest.id.TheTaintedSun],
+			["summoner", sdk.quest.id.TheArcaneSanctuary], ["duriel", sdk.quest.id.TheSevenTombs], ["duriel", sdk.quest.id.AbleToGotoActIII],
+			["lamesen", sdk.quest.id.LamEsensTome], ["travincal", sdk.quest.id.TheBlackenedTemple], ["mephisto", sdk.quest.id.TheGuardian], ["mephisto", sdk.quest.id.AbleToGotoActIV],
+			["izual", sdk.quest.id.TheFallenAngel], ["diablo", sdk.quest.id.TerrorsEnd], ["diablo", sdk.quest.id.AbleToGotoActV],
+			["shenk", sdk.quest.id.SiegeOnHarrogath], ["anya", sdk.quest.id.PrisonofIce], ["ancients", sdk.quest.id.RiteofPassage], ["baal", sdk.quest.id.EyeofDestruction]
+		];
+
+		let quest = quests.find(element => element[1] === id);
+
+		return (!!quest ? quest[0] : "");
+	};
+
+	this.nonQuesterNPCTalk = false;
+
 	addEventListener("chatmsg",
 		function (who, msg) {
-			switch (msg) {
-			case "andy dead":
-				andyCheck = true;
-
-				break;
-			case "summoner dead":
-				summonerCheck = true;
-
-				break;
-			case "trav dead":
-				travCheck = true;
-
-				break;
-			default:
-				if (who === leaderName) {
-					actions.push(msg);
-				}
-
-				break;
+			if (who === leaderName) {
+				actions.push(msg);
 			}
 		});
 
@@ -332,342 +353,604 @@ function AutoRushee() {
 
 		delay(500);
 	}
-
-	say("Leader found.");
-	Town.move("portalspot");
+	// START
+	Town.goToTown(me.highestAct);
+	me.inTown && Town.move("portalspot");
 
 	while (true) {
 		try {
-			if (actions.length) {
+			if (actions.length > 0) {
 				switch (actions[0]) {
-				case "1":
-					while (!leader.area) {
-						delay(500);
-					}
+					case "all in":
+						switch (leader.area) {
+							case sdk.areas.A2SewersLvl3:
+								// Pick Book of Skill, use Book of Skill
+								Town.move("portalspot");
+								Pather.usePortal(sdk.areas.A2SewersLvl3, leaderName);
+								delay(500);
 
-					if (!quester) {
+								while (true) {
+									target = Game.getItem(sdk.quest.item.BookofSkill);
+
+									if (!target) {
+										break;
+									}
+
+									Pickit.pickItem(target);
+									delay(250);
+									target = me.getItem(sdk.quest.item.BookofSkill);
+
+									if (target) {
+										print("Using book of skill");
+										clickItem(sdk.clicktypes.click.Right, target);
+
+										break;
+									}
+								}
+
+								Pather.usePortal(sdk.areas.LutGholein, leaderName);
+								actions.shift();
+
+								break;
+						}
+
 						actions.shift();
 
 						break;
-					}
+					case "questinfo":
+						if (!quester) {
+							actions.shift();
 
-					act = this.checkLeaderAct(leader);
-
-					if (me.act !== act) {
-						Town.goToTown(act);
-						Town.move("portalspot");
-					}
-
-					switch (leader.area) {
-					case 37: // Catacombs level 4
-						if (!Pather.usePortal(37, leaderName)) {
 							break;
 						}
 
-						target = Pather.getPortal(null, leaderName);
-
-						if (target) {
-							Pather.walkTo(target.x, target.y);
-						}
-
-						while (!andyCheck) {
-							delay(500);
-						}
-
-						if (me.playertype != 1 && me.mode === 17) {
-							me.revive();
-
-							while (!me.inTown) {
-								delay(500);
-							}
-						} else {
-							Pather.usePortal(1, leaderName);
-						}
-
-						if (!this.checkQuest(6, 4)) {
-							say("fail");
-							quit();
-						}
-
+						say("highestquest " + this.getQuestInfo(me.highestQuestDone), Config.LocalChat.Enabled);
 						actions.shift();
 
 						break;
-					case 60: // Halls of the Dead level 3
-						Pather.usePortal(60, leaderName);
-						this.getQuestItem(549, 354);
-						Pather.usePortal(40, leaderName);
-
-						actions.shift();
-
-						break;
-					case 61: // Claw Viper Temple level 2
-						if (!this.getQuestItem(521)) {
-							Pather.usePortal(61, leaderName);
-							this.getQuestItem(521, 149);
-							Pather.usePortal(40, leaderName);
-						}
-
-						Town.move(NPC.Drognan);
-
-						target = getUnit(1, NPC.Drognan);
-
-						if (target && target.openMenu()) {
+					case "wpinfo":
+						if (!quester) {
 							actions.shift();
-							me.cancel();
-							say("drognan done");
+
+							break;
 						}
 
-						Town.move("portalspot");
+						// go activate wp if we don't know our wps yet
+						!getWaypoint(1) && Pather.getWP(me.area);
+
+						let myWps = Pather.nonTownWpAreas.slice(0).filter(function (area) {
+							if (area === sdk.areas.HallsofPain) return false;
+							if (me.classic && area >= sdk.areas.Harrogath) return false;
+							if (getWaypoint(Pather.wpAreas.indexOf(area))) return false;
+							return true;
+						});
+
+						say("mywps " + JSON.stringify(myWps));
+						actions.shift();
 
 						break;
-					case 64: // Maggot Lair level 3
-						Pather.usePortal(64, leaderName);
-						this.getQuestItem(92, 356);
-						delay(500);
-						Pather.usePortal(40, leaderName);
-						this.cubeStaff();
+					case "wp":
+						if (!me.inTown && !Town.goToTown()) {
+							this.log("I can't get to town :(", Config.LocalChat.Enabled);
+
+							break;
+						}
+
+						act = Misc.getPlayerAct(leader);
+
+						if (me.act !== act) {
+							Town.goToTown(act);
+							Town.move("portalspot");
+						}
+
+						// make sure we talk to cain to access durance
+						leader.area === sdk.areas.DuranceofHateLvl2 && (!Misc.checkQuest(sdk.quest.id.TheBlackenedTemple, sdk.quest.states.Completed)) && Town.npcInteract("Cain");
+
+						// we aren't the quester but need to talk to npcs in order to be able to get wps from certain areas 
+						(!quester && !this.nonQuesterNPCTalk) && (this.nonQuesterNPCTalk = true);
+
+						Town.getDistance("portalspot") > 10 && Town.move("portalspot");
+						if (Pather.usePortal(null, leaderName) && Pather.getWP(me.area) && Pather.usePortal(sdk.areas.townOf(me.area), leaderName) && Town.move("portalspot")) {
+							me.inTown && Config.LocalChat.Enabled && say("gotwp");
+						} else {
+							// check for bugged portal
+							let p = Game.getObject("portal");
+							let preArea = me.area;
+							if (!!p && Misc.click(0, 0, p) && Misc.poll(() => me.area !== preArea, 1000, 100)
+								&& Pather.getWP(me.area) && (Pather.usePortal(sdk.areas.townOf(me.area), leaderName) || Pather.useWaypoint(sdk.areas.townOf(me.area)))) {
+								me.inTown && Config.LocalChat.Enabled && say("gotwp");
+							} else {
+								this.log("Failed to get wp", Config.LocalChat.Enabled);
+								!me.inTown && Town.goToTown();
+							}
+						}
 
 						actions.shift();
 
 						break;
-					case 74: // Arcane Sanctuary
-						Pather.usePortal(74, leaderName);
-
-						while (!summonerCheck) {
+					case "1":
+						while (!leader.area) {
 							delay(500);
 						}
 
-						if (me.playertype != 1 && me.mode === 17) {
-							me.revive();
+						act = Misc.getPlayerAct(leader);
 
-							while (!me.inTown) {
-								delay(500);
+						if (me.act !== act) {
+							Town.goToTown(act);
+							Town.move("portalspot");
+						}
+
+						// we need to talk to certain npcs in order to be able to grab waypoints as a non-quester
+						if (this.nonQuesterNPCTalk) {
+							console.debug("Leader Area: " + Pather.getAreaName(leader.area));
+
+							switch (leader.area) {
+								case sdk.areas.ClawViperTempleLvl2:
+									Misc.poll(() => !!(Misc.checkQuest(sdk.quest.id.TheTaintedSun, sdk.quest.states.ReqComplete) || Misc.checkQuest(sdk.quest.id.TheTaintedSun, sdk.quest.states.PartyMemberComplete), Time.seconds(20), 1000));
+									if (Town.npcInteract("Drognan")) {
+										actions.shift();
+										console.debug("drognan done");
+									}
+
+									break;
+								case sdk.areas.ArcaneSanctuary:
+									Misc.poll(() => !!(Misc.checkQuest(sdk.quest.id.TheSummoner, sdk.quest.states.ReqComplete) || Misc.checkQuest(sdk.quest.id.TheSummoner, sdk.quest.states.PartyMemberComplete), Time.seconds(20), 1000));
+									if (Town.npcInteract("Atma")) {
+										actions.shift();
+										console.debug("atma done");
+									}
+
+									break;
+								case sdk.areas.Travincal:
+									Misc.poll(() => !!(Misc.checkQuest(sdk.quest.id.TheBlackenedTemple, 4) || Misc.checkQuest(sdk.quest.id.TheBlackenedTemple, sdk.quest.states.PartyMemberComplete) || Misc.checkQuest(sdk.quest.id.TheGuardian, 8), Time.seconds(20), 1000));
+									if (Town.npcInteract("Cain")) {
+										actions.shift();
+										console.debug("cain done");
+									}
+
+									break;
 							}
-						} else {
-							Pather.usePortal(40, leaderName);
+
+							me.inTown && Town.move("portalspot");
 						}
 
-						if (!this.checkQuest(13, 2)) {
-							say("fail");
-							quit();
+						if (!quester) {
+							actions.shift();
+
+							break;
 						}
 
-						Town.move(NPC.Atma);
+						switch (leader.area) {
+							case sdk.areas.StonyField:
+								if (!Pather.usePortal(sdk.areas.StonyField, leaderName)) {
+									this.log("Failed to us portal to stony field", Config.LocalChat.Enabled);
+									break;
+								}
 
-						target = getUnit(1, NPC.Atma);
+								let stones = [
+									Game.getObject(sdk.quest.chest.StoneAlpha),
+									Game.getObject(sdk.quest.chest.StoneBeta),
+									Game.getObject(sdk.quest.chest.StoneGamma),
+									Game.getObject(sdk.quest.chest.StoneDelta),
+									Game.getObject(sdk.quest.chest.StoneLambda)
+								];
 
-						if (target) {
-							target.openMenu();
-							me.cancel();
-						}
+								while (stones.some((stone) => !stone.mode)) {
+									for (let i = 0; i < stones.length; i++) {
+										let stone = stones[i];
 
-						Town.move("portalspot");
-						actions.shift();
+										if (Misc.openChest(stone)) {
+											stones.splice(i, 1);
+											i--;
+										}
+										delay(10);
+									}
+								}
 
-						break;
-					case 66: // Tal Rasha's Tombs
-					case 67:
-					case 68:
-					case 69:
-					case 70:
-					case 71:
-					case 72:
-						Pather.usePortal(null, leaderName);
-						this.placeStaff();
-						Pather.usePortal(40, leaderName);
+								let tick = getTickCount();
+								// wait up to two minutes
+								while (getTickCount() - tick < Time.minutes(2)) {
+									if (Pather.getPortal(sdk.areas.Tristram)) {
+										Pather.usePortal(sdk.areas.RogueEncampment, leaderName);
 
-						actions.shift();
-
-						break;
-					case 73: // Duriel's Lair
-						Pather.usePortal(73, leaderName);
-						this.tyraelTalk();
-
-						actions.shift();
-
-						break;
-					case 83: // Travincal
-						if (me.inTown) {
-							if (!Pather.usePortal(83, leaderName)) {
-								me.cancel();
+										break;
+									}
+								}
+								Town.move("portalspot");
+								actions.shift();
 
 								break;
-							}
-
-							target = Pather.getPortal(null, leaderName);
-
-							if (target) {
-								Pather.walkTo(target.x, target.y);
-							}
-						}
-
-						if (!me.inTown) {
-							while (!travCheck) {
-								delay(500);
-							}
-
-							if (me.playertype != 1 && me.mode === 17) {
-								me.revive();
-
-								while (!me.inTown) {
-									delay(500);
+							case sdk.areas.DarkWood:
+								if (!Pather.usePortal(sdk.areas.DarkWood, leaderName)) {
+									this.log("Failed to use portal to dark wood", Config.LocalChat.Enabled);
+									scriptBroadcast("quit");
+									break;
 								}
-							} else {
-								Pather.usePortal(75, leaderName);
-							}
-						}
 
-						if (me.inTown) {
-							Town.move("cain");
-
-							target = getUnit(1, NPC.Cain);
-
-							if (target) {
-								target.openMenu();
-								me.cancel();
-							}
-
-							Town.move("portalspot");
-
-							if (!this.checkQuest(21, 0)) {
-								say("fail");
-								quit();
-							}
-
-							actions.shift();
-						}
-
-						break;
-					case 102: // Durance of Hate level 3
-						if (me.area === 75) {
-							Pather.usePortal(102, leaderName);
-						}
-
-						if (me.area === 102) {
-							//this.checkQuestMonster(242);
-							while (leader.area === me.area) {
+								this.getQuestItem(sdk.items.quest.ScrollofInifuss, sdk.quest.chest.InifussTree);
 								delay(500);
-							}
+								Pather.usePortal(sdk.areas.RogueEncampment, leaderName);
 
-							if (me.playertype != 1 && me.mode === 17) {
-								me.revive();
-
-								while (!me.inTown) {
-									delay(500);
+								if (Town.npcInteract("Akara")) {
+									this.log("Akara done", Config.LocalChat.Enabled);
 								}
 
 								Town.move("portalspot");
-								Pather.usePortal(102, leaderName);
-							}
+								actions.shift();
 
-							actions.shift();
+								break;
+							case sdk.areas.Tristram:
+								if (!Pather.usePortal(sdk.areas.Tristram, leaderName)) {
+									this.log("Failed to use portal to Tristram", Config.LocalChat.Enabled);
+									break;
+								}
+
+								let gibbet = Game.getObject(sdk.quest.chest.CainsJail);
+
+								if (gibbet && !gibbet.mode) {
+									Pather.moveTo(gibbet.x, gibbet.y);
+									if (Misc.poll(() => Misc.openChest(gibbet), 2000, 100)) {
+										Pather.usePortal(sdk.areas.RogueEncampment, leaderName);
+										Town.npcInteract("Akara") && this.log("Akara done", Config.LocalChat.Enabled);
+									}
+								}
+								Town.move("portalspot");
+								actions.shift();
+
+								break;
+							case sdk.areas.CatacombsLvl4:
+								if (!Pather.usePortal(sdk.areas.CatacombsLvl4, leaderName)) {
+									this.log("Failed to use portal to catacombs", Config.LocalChat.Enabled);
+									scriptBroadcast("quit");
+									break;
+								}
+
+								target = Pather.getPortal(null, leaderName);
+								target && Pather.walkTo(target.x, target.y);
+
+								actions.shift();
+
+								break;
+							case sdk.areas.A2SewersLvl3:
+								Town.move("portalspot");
+
+								if (Pather.usePortal(sdk.areas.A2SewersLvl3, leaderName)) {
+									actions.shift();
+								}
+
+								break;
+							case sdk.areas.HallsoftheDeadLvl3:
+								Pather.usePortal(sdk.areas.HallsoftheDeadLvl3, leaderName);
+								this.getQuestItem(sdk.quest.item.Cube, sdk.quest.chest.HoradricCubeChest);
+								Pather.usePortal(sdk.areas.LutGholein, leaderName);
+
+								actions.shift();
+
+								break;
+							case sdk.areas.ClawViperTempleLvl2:
+								Pather.usePortal(sdk.areas.ClawViperTempleLvl2, leaderName);
+								this.getQuestItem(sdk.quest.item.ViperAmulet, sdk.quest.chest.ViperAmuletChest);
+								Pather.usePortal(sdk.areas.LutGholein, leaderName);
+
+								if (Town.npcInteract("Drognan")) {
+									actions.shift();
+									say("drognan done", Config.LocalChat.Enabled);
+								}
+
+								Town.move("portalspot");
+
+								break;
+							case sdk.areas.MaggotLairLvl3:
+								Pather.usePortal(sdk.areas.MaggotLairLvl3, leaderName);
+								this.getQuestItem(sdk.quest.item.ShaftoftheHoradricStaff, sdk.quest.chest.ShaftoftheHoradricStaffChest);
+								delay(500);
+								Pather.usePortal(sdk.areas.LutGholein, leaderName);
+								this.cubeStaff();
+
+								actions.shift();
+
+								break;
+							case sdk.areas.ArcaneSanctuary:
+								if (!Pather.usePortal(sdk.areas.ArcaneSanctuary, leaderName)) {
+									break;
+								}
+
+								actions.shift();
+
+								break;
+							case sdk.areas.TalRashasTomb1:
+							case sdk.areas.TalRashasTomb2:
+							case sdk.areas.TalRashasTomb3:
+							case sdk.areas.TalRashasTomb4:
+							case sdk.areas.TalRashasTomb5:
+							case sdk.areas.TalRashasTomb6:
+							case sdk.areas.TalRashasTomb7:
+								Pather.usePortal(null, leaderName);
+								this.placeStaff();
+								Pather.usePortal(sdk.areas.LutGholein, leaderName);
+								actions.shift();
+
+								break;
+							case sdk.areas.DurielsLair:
+								Pather.usePortal(sdk.areas.DurielsLair, leaderName);
+								this.tyraelTalk();
+
+								actions.shift();
+
+								break;
+							case sdk.areas.Travincal:
+								if (!Pather.usePortal(sdk.areas.Travincal, leaderName)) {
+									me.cancel();
+
+									break;
+								}
+
+								actions.shift();
+
+								break;
+							case sdk.areas.RuinedTemple:
+								if (!Pather.usePortal(sdk.areas.RuinedTemple, leaderName)) {
+									me.cancel();
+
+									break;
+								}
+
+								this.getQuestItem(sdk.quest.item.LamEsensTome, sdk.quest.chest.LamEsensTomeHolder);
+								Pather.usePortal(sdk.areas.KurastDocktown, leaderName);
+								Town.npcInteract("Alkor");
+								Town.move("portalspot");
+								actions.shift();
+
+
+								break;
+							case sdk.areas.DuranceofHateLvl3:
+								if (!Pather.usePortal(sdk.areas.DuranceofHateLvl3, leaderName)) {
+									Town.npcInteract("Cain") && delay(1000);
+									me.cancel();
+
+									break;
+								}
+
+
+								actions.shift();
+
+								break;
+							case sdk.areas.OuterSteppes:
+							case sdk.areas.PlainsofDespair:
+								if (Pather.usePortal(null, leaderName)) {
+									actions.shift();
+								}
+
+								break;
+							case sdk.areas.ChaosSanctuary:
+								Pather.usePortal(sdk.areas.ChaosSanctuary, leaderName);
+								Pather.moveTo(7762, 5268);
+								Packet.flash(me.gid);
+								delay(500);
+								Pather.walkTo(7763, 5267, 2);
+
+								while (!Game.getMonster(sdk.monsters.Diablo)) {
+									delay(500);
+								}
+
+								Pather.moveTo(7763, 5267);
+								actions.shift();
+
+								break;
+							// planning on adding a second leader to rush act 5 in expansion
+							/*case sdk.areas.BloodyFoothills:
+								Pather.usePortal(sdk.areas.BloodyFoothills, leaderName);
+								actions.shift();
+
+								break;
+							case sdk.areas.FrozenRiver:
+								Town.npcInteract("Malah");
+
+								Pather.usePortal(sdk.areas.FrozenRiver, leaderName);
+								delay(500);
+
+								target = Game.getObject(sdk.objects.FrozenAnya);
+
+								if (target) {
+									Pather.moveToUnit(target);
+									Misc.poll(() => {
+										Packet.entityInteract(target);
+										delay(100);
+										return !Game.getObject(sdk.objects.FrozenAnya);
+									}, 1000, 200);
+									delay(1000);
+									me.cancel();
+								}
+
+								actions.shift();
+
+								break;*/
+							default: // unsupported area
+								actions.shift();
+
+								break;
 						}
 
 						break;
-					case 108: // Chaos Sanctuary
-						Pather.usePortal(108, leaderName);
+					case "2": // Go back to town and check quest
+						if (!quester) {
+							// Non-questers can piggyback off quester out messages
+							switch (leader.area) {
+								case sdk.areas.OuterSteppes:
+								case sdk.areas.PlainsofDespair:
+									me.act === 4 && Misc.checkQuest(sdk.quest.id.TheFallenAngel, sdk.quest.states.ReqComplete) && Town.npcInteract("Tyrael");
 
-						while (!getUnit(1, 243)) {
-							delay(500);
-						}
-
-						Pather.moveTo(7763, 5267);
-						this.checkQuestMonster(243);
-
-						if (me.gametype === 0) {
-							D2Bot.restart();
-						} else {
-							if (me.playertype != 1 && me.mode === 17) {
-								me.revive();
-
-								while (!me.inTown) {
-									delay(500);
-								}
+									break;
 							}
 
-							Pather.usePortal(103, leaderName);
+							actions.shift();
+
+							break;
 						}
+
+						this.revive();
+
+						switch (me.area) {
+							case sdk.areas.CatacombsLvl4:
+								// Go to town if not there, break if procedure fails
+								if (!me.inTown && !Pather.usePortal(sdk.areas.RogueEncampment)) {
+									break;
+								}
+
+								if (!Misc.checkQuest(sdk.quest.id.SistersToTheSlaughter, 4)) {
+									D2Bot.printToConsole("Andariel quest failed", sdk.colors.D2Bot.Red);
+									scriptBroadcast("quit") && quit();
+								}
+
+								actions.shift();
+
+								break;
+							case sdk.areas.A2SewersLvl3:
+								if (!me.inTown && !Pather.usePortal(sdk.areas.LutGholein, leaderName)) {
+									break;
+								}
+
+								actions.shift();
+
+								break;
+							case sdk.areas.ArcaneSanctuary:
+								if (!me.inTown && !Pather.usePortal(sdk.areas.LutGholein, leaderName)) {
+									break;
+								}
+
+								Town.npcInteract("Atma");
+
+								if (!Misc.checkQuest(sdk.quest.id.TheSummoner, sdk.quest.states.Completed)) {
+									D2Bot.printToConsole("Summoner quest failed", sdk.colors.D2Bot.Red);
+									scriptBroadcast("quit") && quit();
+								}
+
+								Town.move("portalspot");
+								actions.shift();
+
+								break;
+							case sdk.areas.Travincal:
+								if (!me.inTown && !Pather.usePortal(sdk.areas.KurastDocktown, leaderName)) {
+									break;
+								}
+
+								Town.npcInteract("Cain");
+
+								if (!Misc.checkQuest(sdk.quest.id.TheBlackenedTemple, sdk.quest.states.Completed)) {
+									D2Bot.printToConsole("Travincal quest failed", sdk.colors.D2Bot.Red);
+									scriptBroadcast("quit") && quit();
+								}
+
+								Town.move("portalspot");
+								actions.shift();
+
+								break;
+							case sdk.areas.DuranceofHateLvl3:
+								if (!Pather.usePortal(sdk.areas.KurastDocktown, leaderName)) {
+									break;
+								}
+
+								actions.shift();
+
+								break;
+							case sdk.areas.OuterSteppes:
+							case sdk.areas.PlainsofDespair:
+								if (!me.inTown && !Pather.usePortal(sdk.areas.PandemoniumFortress, leaderName)) {
+									break;
+								}
+
+								if (Misc.checkQuest(sdk.quest.id.TheFallenAngel, sdk.quest.states.ReqComplete)) {
+									Town.npcInteract("Tyrael");
+									Town.move("portalspot");
+								}
+
+								actions.shift();
+
+								break;
+							case sdk.areas.ChaosSanctuary:
+								if (!me.inTown && !Pather.usePortal(sdk.areas.PandemoniumFortress, leaderName)) {
+									break;
+								}
+
+								actions.shift();
+
+								break;
+							// planning on adding a second leader to rush act 5 in expansion
+							/*case sdk.areas.BloodyFoothills:
+								if (!me.inTown && !Pather.usePortal(sdk.areas.Harrogath, leaderName)) {
+									break;
+								}
+		
+								Town.npcInteract("Larzuk");
+								Town.move("portalspot");
+								actions.shift();
+		
+								break;
+							case sdk.areas.FrozenRiver:
+								if (!me.inTown && !Pather.usePortal(sdk.areas.FrozenRiver, leaderName)) {
+									break;
+								}
+		
+								Town.npcInteract("Malah");
+								this.useScrollOfRes();
+								Town.move("portalspot");
+		
+								actions.shift();
+		
+								break;*/
+							default:
+								Town.move("portalspot");
+								actions.shift();
+
+								break;
+						}
+
+						break;
+					case "we're done":
+						//D2Bot.printToConsole("Rush Complete");
+						D2Bot.stop();
+
+						break;
+					case "bye ~":
+						D2Bot.restart();
+
+						break;
+					case "a2":
+					case "a3":
+					case "a4":
+					case "a5":
+						act = actions[0].toString()[1];
+						!!act && (act = (parseInt(act, 10) || me.act + 1));
+
+						if (!this.changeAct(act)) {
+							break;
+						}
+
+						Town.move("portalspot");
+						actions.shift();
+
+						break;
+					case me.name + " quest":
+						say("I am quester.");
+						quester = true;
 
 						actions.shift();
 
 						break;
-					}
+					case "leader":
+						console.log(leaderName + " is my leader in my config.");
+						Config.LocalChat.Enabled && say(leaderName + " is my leader in my config.");
+						actions.shift();
 
-					break;
-				/*case "finish":
-					AutoRush.finishRush();
-					D2Bot.restart();
-
-					break;*/
-				case me.name + " quest":
-					say("I am quester.");
-
-					quester = true;
-
-					actions.shift();
-
-					break;
-				case "quit":
-					quit();
-
-					break;
-				case "exit":
-					D2Bot.restart();
-
-					break;
-				case "a2":
-					if (!this.changeAct(2)) {
 						break;
-					}
+					default: // Invalid command
+						actions.shift();
 
-					target = getUnit(1, NPC.Jerhyn);
-
-					if (target) {
-						target.openMenu();
-					}
-
-					me.cancel();
-
-					if (quester) {
-						Town.move("portalspot");
-					} else {
-						Town.move("palace");
-					}
-
-					actions.shift();
-
-					break;
-				case "a3":
-					if (!this.changeAct(3)) {
 						break;
-					}
-
-					Town.move("portalspot");
-					actions.shift();
-
-					break;
-				case "a4":
-					if (!this.changeAct(4)) {
-						break;
-					}
-
-					Town.move("portalspot");
-					actions.shift();
-
-					break;
-				case "a5":
-					if (!this.changeAct(5)) {
-						break;
-					}
-
-					Town.move("portalspot");
-					actions.shift();
-
-					break;
 				}
 			}
 		} catch (e) {
-			if (me.playertype != 1 && me.mode === 17) {
+			if (me.mode === sdk.player.mode.Dead) {
 				me.revive();
 
 				while (!me.inTown) {
@@ -676,12 +959,18 @@ function AutoRushee() {
 			}
 		}
 
-		if (getUIFlag(0x17)) {
+		if (getUIFlag(sdk.uiflags.TradePrompt)) {
 			me.cancel();
+		}
+
+		if (done) {
+			break;
 		}
 
 		delay(500);
 	}
+
+	done && quit();
 
 	return true;
 }
