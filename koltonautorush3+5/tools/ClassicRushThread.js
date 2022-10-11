@@ -82,7 +82,7 @@ function giveWP() {
 
 new Overrides.Override(Pather, Pather.useWaypoint, function (orignal, targetArea, check) {
 	if (orignal(targetArea, check)) {
-		return (AutoRush.Extra.GiveWps && giveWP()) || true;
+		return (AutoRush.RushConfig.GiveWps && giveWP()) || true;
 	} else {
 		print("failed");
 
