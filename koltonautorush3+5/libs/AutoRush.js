@@ -20,7 +20,7 @@ const AutoRush = {
 		charName: "PRusherhelp-MG"
 	},
 
-	Extra: {
+	RushConfig: {
 		Cain: false, // Do cain quest.
 		Radament: false, // Do Radament quest.
 		LamEsen: false, // Do Lam Esen quest.
@@ -37,7 +37,7 @@ const AutoRush = {
 		"AutoRushee2": [
 			{account: "Au2", password: "123", realm: "asia", charName: "au-ii", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
 		],
-		/*"AutoRushee3": [
+		"AutoRushee3": [
 			{account: "Au3", password: "", realm: "asia", charName: "au-iii", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
 		],
 		"AutoRushee4": [
@@ -45,7 +45,7 @@ const AutoRush = {
 		],
 		"AutoRushee5": [
 			{account: "Au5", password: "", realm: "asia", charName: "au-v", charClass: "paladin", ladder: true, expansion: false, hardcore: false}
-		]*/
+		]
 	},
 
 	RushInfo: {

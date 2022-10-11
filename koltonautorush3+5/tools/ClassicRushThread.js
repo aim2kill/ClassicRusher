@@ -432,16 +432,14 @@ function main() {
 		}
 		if (me.diff == 2) {
 			this.log("out");
-			while (Game.getPlayer(barbhelper)) {
-				delay(1000);
-			}
-			delay(1000);
+			delay(3000);
 		}
 
 		Pather.moveTo(coords[0] + 86, coords[1] - 130);
 		Pather.moveTo(coords[0] + 71, coords[1] - 94);
 		Pather.makePortal() && this.log("kill");
-		Attack.securePosition(me.x, me.y, 40, 3000);
+		Attack.clearList(Attack.getMob([sdk.monsters.Council1, sdk.monsters.Council2, sdk.monsters.Council3], 0, 40));
+		Pickit.pickItems();
 
 		Pather.moveTo(coords[0] + 50, coords[1] - 137);
 		Pather.makePortal();
@@ -510,12 +508,12 @@ function main() {
 	this.diablo = function () {
 		this.log("starting diablo");
 
-		function inviteIn () {
+		function inviteIn() {
 			Pather.moveTo(7763, 5267) && Pather.makePortal();
 			Pather.moveTo(7773, 5286);
 			this.log("1");
 			this.log("kill");
-		
+
 			while (!this.playerIn()) {
 				delay(250);
 			}
@@ -576,9 +574,9 @@ function main() {
 		this.log("Done clearing area: " + area);
 	};
 
-	// Quests
+	// Extra Quests
 	this.cain = function () {
-		if (!AutoRush.Extra.Cain) return true;
+		if (!AutoRush.RushConfig.Cain) return false;
 		this.log("starting cain");
 
 		Town.doChores();
@@ -650,7 +648,7 @@ function main() {
 	};
 
 	this.radament = function () {
-		if (!AutoRush.Extra.Radament) return false;
+		if (!AutoRush.RushConfig.Radament) return false;
 		this.log("starting radament");
 
 		let moveIntoPos = function (unit, range) {
@@ -740,7 +738,7 @@ function main() {
 	};
 
 	this.lamesen = function () {
-		if (!AutoRush.Extra.LamEsen) return false;
+		if (!AutoRush.RushConfig.LamEsen) return false;
 		this.log("starting lamesen");
 
 		if (!Town.goToTown() || !Pather.useWaypoint(sdk.areas.KurastBazaar, true)) {
@@ -772,7 +770,7 @@ function main() {
 	};
 
 	this.izual = function () {
-		if (!AutoRush.Extra.Izual) return false;
+		if (!AutoRush.RushConfig.Izual) return false;
 		this.log("starting izual");
 
 		let moveIntoPos = function (unit, range) {
@@ -848,7 +846,7 @@ function main() {
 	};
 
 	this.givewps = function () {
-		if (!AutoRush.Extra.GiveWps) return false;
+		if (!AutoRush.RushConfig.GiveWps) return false;
 
 		let wpsLeft = wpsToGive.slice(0);
 		console.log(JSON.stringify(wpsLeft));
@@ -907,7 +905,7 @@ function main() {
 
 						D2Bot.stop();
 						break;
-					} 
+					}
 					// End run if entire sequence is done
 					if (me.diff <= 1 && current >= sequence.length) {
 						delay(3000);
